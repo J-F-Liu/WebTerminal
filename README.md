@@ -1,7 +1,7 @@
 
 Test WebSocket in browser console:
 ```
-let socket = new WebSocket('ws://127.0.0.1:8000/socket');
+let socket = new WebSocket('ws://127.0.0.1:8000/socket/sh');
 socket.onmessage = (event) => {
     console.log(event.data);
 };

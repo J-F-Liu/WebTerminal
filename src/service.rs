@@ -1,7 +1,7 @@
 use axum::{
     Json,
-    extract::State,
     extract::ws::{Message, WebSocket, WebSocketUpgrade},
+    extract::{Path, State},
     http::StatusCode,
     response::Response,
 };
@@ -47,11 +47,20 @@ async fn execute_command_inner(state: &AppState, command: &str) -> String {
 }
 
 // WebSocketUpgrade 用于将 HTTP 请求升级为 WebSocket 连接
-pub async fn connect_socket(ws: WebSocketUpgrade, State(state): State<AppState>) -> Response {
-    ws.on_upgrade(|socket| handle_socket(socket, state))
+pub async fn connect_socket(
+    ws: WebSocketUpgrade,
+    Path(shell): Path<String>,
+    state: State<AppState>,
+) -> Response {
+    let work_dir = state.work_dir.clone();
+    ws.on_upgrade(|socket| handle_socket(socket, shell, work_dir))
 }
 
-async fn handle_socket(socket: WebSocket, state: AppState) {
+async fn handle_socket(socket: WebSocket, name: String, work_dir: std::path::PathBuf) {
+    let mut state = AppState {
+        shell: crate::shell::Shell::from_name(&name),
+        work_dir,
+    };
     let (mut sender, mut receiver) = socket.split();
     if let Some(version) = state.shell.get_version() {
         sender.send(Message::text(version)).await.ok();
@@ -61,11 +70,25 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
     }
     while let Some(Ok(msg)) = receiver.next().await {
         if let Ok(command) = msg.to_text() {
+            info!("> {}", command);
             if command == "exit" {
                 info!("Exit command shell");
                 break;
+            } else if let Some(path) = command.strip_prefix("cd ") {
+                let work_dir = std::path::PathBuf::from(path.trim());
+                if work_dir.is_absolute() {
+                    state.work_dir = work_dir;
+                } else {
+                    state.work_dir = state.work_dir.join(work_dir);
+                }
+                let message = if state.work_dir.exists() {
+                    "".to_string()
+                } else {
+                    format!("Directory does not exist: {}", state.work_dir.display())
+                };
+                sender.send(Message::text(message)).await.ok();
+                continue;
             }
-            info!("> {}", command);
             let output = execute_command_inner(&state, command).await;
             info!("{}", &output);
             match sender.send(Message::text(output)).await {

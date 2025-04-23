@@ -44,7 +44,7 @@ async fn main() -> anyhow::Result<()> {
     // build our application with some routes
     let router = Router::new()
         .route("/shells", get(get_available))
-        .route("/socket", any(connect_socket))
+        .route("/socket/{shell}", any(connect_socket))
         .route("/execute", post(execute_command))
         .with_state(state)
         .nest_service("/logs", ServeDir::new(logs_dir))
