@@ -1,0 +1,8 @@
+###
+GET http://127.0.0.1:8000/shells
+
+###
+POST http://127.0.0.1:8000/execute
+Content-Type: text/plain
+
+ls -l
