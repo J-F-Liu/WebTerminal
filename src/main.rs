@@ -9,13 +9,16 @@ use tracing::*;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod service;
+mod shell;
 use service::*;
+use shell::Shell;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
     let host = env::var("HOST").unwrap_or("127.0.0.1".to_string());
     let port = env::var("PORT").unwrap_or("8000".to_string());
+    let shell = env::var("SHELL").unwrap_or("cmd".to_string());
     let work_dir = env::var("WORK_DIR")
         .map(|dir| std::path::PathBuf::from(dir))
         .unwrap_or(env::current_dir().unwrap());
@@ -31,9 +34,10 @@ async fn main() -> anyhow::Result<()> {
         .init();
     info!("Listening on {}", &server_url);
     info!("Work directory: {}", work_dir.display());
+    info!("Command shell: {}", &shell);
 
     let state = AppState {
-        shell: "cmd".to_string(),
+        shell: Shell::from_name(&shell),
         work_dir,
     };
 
