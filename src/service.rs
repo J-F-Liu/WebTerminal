@@ -6,6 +6,10 @@ use axum::{
     response::Response,
 };
 use futures_util::{sink::SinkExt, stream::StreamExt};
+use seqsee::{
+    AnsiParser,
+    ansi::{AnsiElement, ctrl::ControlCharacter},
+};
 use std::process::Command;
 use tracing::*;
 
@@ -37,6 +41,7 @@ async fn execute_command_inner(state: &AppState, command: &str) -> String {
             if output.stderr.len() > 0 {
                 text.push_str(shell.encoding.decode(&output.stderr).0.as_ref());
             }
+            text = strip_ansi_control_codes(text.as_bytes());
             text
         }
         Err(err) => {
@@ -44,6 +49,33 @@ async fn execute_command_inner(state: &AppState, command: &str) -> String {
             err.to_string()
         }
     }
+}
+
+fn strip_ansi_control_codes(bytes: &[u8]) -> String {
+    let mut result = String::new();
+    if let Ok(elements) = AnsiParser::parse(bytes) {
+        for element in elements {
+            match element {
+                AnsiElement::Text(text) => {
+                    result.push_str(&text);
+                }
+                AnsiElement::Ctrl(ctrl) => match ctrl {
+                    ControlCharacter::CarriageReturn => {
+                        result.push('\r');
+                    }
+                    ControlCharacter::LineFeed => {
+                        result.push('\n');
+                    }
+                    ControlCharacter::Tab => {
+                        result.push('\t');
+                    }
+                    _ => {}
+                },
+                _ => {}
+            }
+        }
+    }
+    result
 }
 
 // WebSocketUpgrade 用于将 HTTP 请求升级为 WebSocket 连接
@@ -75,13 +107,24 @@ async fn handle_socket(socket: WebSocket, name: String, work_dir: std::path::Pat
                 info!("Exit command shell");
                 break;
             } else if let Some(path) = command.strip_prefix("cd ") {
-                let work_dir = std::path::PathBuf::from(path.trim());
-                if work_dir.is_absolute() {
-                    state.work_dir = work_dir;
-                } else {
-                    state.work_dir = state.work_dir.join(work_dir);
+                let mut work_dir = std::path::PathBuf::from(path.trim());
+                if !work_dir.is_absolute() {
+                    work_dir = state.work_dir.join(work_dir);
+                    if let Ok(path) = work_dir.canonicalize() {
+                        work_dir = path;
+                    } else {
+                        sender
+                            .send(Message::text(format!(
+                                "Failed to resolve path: {}",
+                                work_dir.display()
+                            )))
+                            .await
+                            .ok();
+                        continue;
+                    }
                 }
                 let message = if state.work_dir.exists() {
+                    state.work_dir = work_dir;
                     "".to_string()
                 } else {
                     format!("Directory does not exist: {}", state.work_dir.display())
