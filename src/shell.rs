@@ -1,51 +1,56 @@
-#[derive(Clone)]
-pub struct Shell {
-    pub program: &'static str,
-    pub argument: &'static str,
-    pub version: &'static str,
-    pub encoding: &'static encoding_rs::Encoding,
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum Shell {
+    CMD,
+    Bash,
+    SH,
+    NU,
 }
 
 impl Shell {
     pub fn from_name(name: &str) -> Self {
         match name {
-            "cmd" => CMD.clone(),
-            "sh" => SH.clone(),
-            "nu" => NU.clone(),
-            _ => CMD.clone(),
+            "cmd" => Shell::CMD,
+            "bash" => Shell::Bash,
+            "sh" => Shell::SH,
+            "nu" => Shell::NU,
+            _ => Shell::SH,
         }
     }
 
-    pub fn get_version(&self) -> Option<String> {
-        if let Ok(output) = std::process::Command::new(self.program)
-            .arg(self.version)
+    pub fn program(&self) -> &'static str {
+        match self {
+            Shell::CMD => "cmd",
+            Shell::Bash => "bash",
+            Shell::SH => "sh",
+            Shell::NU => "nu",
+        }
+    }
+
+    pub fn argument(&self) -> &'static str {
+        match self {
+            Shell::CMD => "/c",
+            _ => "-c",
+        }
+    }
+
+    pub fn version(&self) -> Option<String> {
+        if *self == Shell::CMD {
+            if let Ok(output) = std::process::Command::new(self.program())
+                .arg("/v")
+                .output()
+            {
+                if output.status.success() {
+                    return Some(encoding_rs::GBK.decode(&output.stdout).0.to_string());
+                }
+            }
+        } else if let Ok(output) = std::process::Command::new(self.program())
+            .arg("--version")
             .output()
         {
             if output.status.success() {
-                return Some(self.encoding.decode(&output.stdout).0.to_string());
+                return Some(String::from_utf8_lossy(&output.stdout).to_string());
             }
         }
         return None;
     }
 }
-
-pub static CMD: Shell = Shell {
-    program: "cmd",
-    argument: "/c",
-    version: "/v",
-    encoding: encoding_rs::GBK,
-};
-
-pub static SH: Shell = Shell {
-    program: "sh",
-    argument: "-c",
-    version: "--version",
-    encoding: encoding_rs::UTF_8,
-};
-
-pub static NU: Shell = Shell {
-    program: "nu",
-    argument: "-c",
-    version: "--version",
-    encoding: encoding_rs::UTF_8,
-};

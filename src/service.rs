@@ -31,16 +31,16 @@ pub async fn execute_command(state: State<AppState>, command: String) -> String 
 
 async fn execute_command_inner(state: &AppState, command: &str) -> String {
     let shell = &state.shell;
-    match Command::new(shell.program)
+    match Command::new(shell.program())
         .current_dir(&state.work_dir)
-        .arg(shell.argument)
+        .arg(shell.argument())
         .arg(command)
         .output()
     {
         Ok(output) => {
-            let mut text = shell.encoding.decode(&output.stdout).0.to_string();
+            let mut text = decode_text(&output.stdout);
             if output.stderr.len() > 0 {
-                text.push_str(shell.encoding.decode(&output.stderr).0.as_ref());
+                text.push_str(&decode_text(&output.stderr));
             }
             text = strip_ansi_control_codes(text.as_bytes());
             text
@@ -50,6 +50,13 @@ async fn execute_command_inner(state: &AppState, command: &str) -> String {
             err.to_string()
         }
     }
+}
+
+fn decode_text(bytes: &[u8]) -> String {
+    let mut detector = chardetng::EncodingDetector::new();
+    detector.feed(bytes, true);
+    let encoding = detector.guess(None, true);
+    encoding.decode(bytes).0.to_string()
 }
 
 fn strip_ansi_control_codes(bytes: &[u8]) -> String {
@@ -90,12 +97,13 @@ pub async fn connect_socket(
 }
 
 async fn handle_socket(socket: WebSocket, name: String, work_dir: std::path::PathBuf) {
+    info!("Command shell: {}", &name);
     let mut state = AppState {
         shell: crate::shell::Shell::from_name(&name),
         work_dir,
     };
     let (mut sender, mut receiver) = socket.split();
-    if let Some(version) = state.shell.get_version() {
+    if let Some(version) = state.shell.version() {
         sender.send(Message::text(version)).await.ok();
     } else {
         error!("Failed to get shell version");
