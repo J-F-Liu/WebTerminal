@@ -7,10 +7,6 @@ use axum::{
 };
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use normpath::PathExt;
-use seqsee::{
-    AnsiParser,
-    ansi::{AnsiElement, ctrl::ControlCharacter},
-};
 use std::process::Command;
 use tracing::*;
 
@@ -42,8 +38,7 @@ async fn execute_command_inner(state: &AppState, command: &str) -> String {
             if output.stderr.len() > 0 {
                 text.push_str(&decode_text(&output.stderr));
             }
-            text = strip_ansi_control_codes(text.as_bytes());
-            text
+            strip_ansi_escapes::strip_str(text)
         }
         Err(err) => {
             error!("Failed to execute command: {}", err);
@@ -57,33 +52,6 @@ fn decode_text(bytes: &[u8]) -> String {
     detector.feed(bytes, true);
     let encoding = detector.guess(None, true);
     encoding.decode(bytes).0.to_string()
-}
-
-fn strip_ansi_control_codes(bytes: &[u8]) -> String {
-    let mut result = String::new();
-    if let Ok(elements) = AnsiParser::parse(bytes) {
-        for element in elements {
-            match element {
-                AnsiElement::Text(text) => {
-                    result.push_str(&text);
-                }
-                AnsiElement::Ctrl(ctrl) => match ctrl {
-                    ControlCharacter::CarriageReturn => {
-                        result.push('\r');
-                    }
-                    ControlCharacter::LineFeed => {
-                        result.push('\n');
-                    }
-                    ControlCharacter::Tab => {
-                        result.push('\t');
-                    }
-                    _ => {}
-                },
-                _ => {}
-            }
-        }
-    }
-    result
 }
 
 // WebSocketUpgrade 用于将 HTTP 请求升级为 WebSocket 连接
