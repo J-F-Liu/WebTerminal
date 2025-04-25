@@ -54,3 +54,10 @@ impl Shell {
         return None;
     }
 }
+
+pub fn available_shells() -> Vec<Shell> {
+    vec![Shell::CMD, Shell::Bash, Shell::SH, Shell::NU]
+        .into_iter()
+        .filter(|shell| shell.version().is_some())
+        .collect()
+}

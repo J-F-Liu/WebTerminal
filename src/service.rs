@@ -2,7 +2,6 @@ use axum::{
     Json,
     extract::ws::{Message, WebSocket, WebSocketUpgrade},
     extract::{Path, State},
-    http::StatusCode,
     response::Response,
 };
 use futures_util::{sink::SinkExt, stream::StreamExt};
@@ -16,9 +15,13 @@ pub struct AppState {
     pub work_dir: std::path::PathBuf,
 }
 
-pub async fn get_available() -> Result<Json<Vec<String>>, StatusCode> {
-    let available = vec!["cmd".to_string(), "sh".to_string(), "nu".to_string()];
-    Ok(Json(available))
+pub async fn get_available() -> Json<Vec<String>> {
+    Json(
+        crate::shell::available_shells()
+            .into_iter()
+            .map(|shell| shell.program().to_string())
+            .collect::<Vec<String>>(),
+    )
 }
 
 pub async fn execute_command(state: State<AppState>, command: String) -> String {
