@@ -1,7 +1,8 @@
 import './style.css'
 
-// const webSocket = new WebSocket('ws://127.0.0.1:8000/socket/sh');
-const webSocket = new WebSocket('ws://' + window.location.host + '/socket/sh');
+let shell = new URLSearchParams(window.location.search).get('shell') || 'sh';
+// const webSocket = new WebSocket('ws://127.0.0.1:8000/socket/' + shell);
+const webSocket = new WebSocket(`ws://${window.location.host}/socket/${shell}`);
 
 let length = 0;
 let command = '';
