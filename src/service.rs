@@ -6,6 +6,7 @@ use axum::{
     response::Response,
 };
 use futures_util::{sink::SinkExt, stream::StreamExt};
+use normpath::PathExt;
 use seqsee::{
     AnsiParser,
     ansi::{AnsiElement, ctrl::ControlCharacter},
@@ -108,26 +109,14 @@ async fn handle_socket(socket: WebSocket, name: String, work_dir: std::path::Pat
                 break;
             } else if let Some(path) = command.strip_prefix("cd ") {
                 let mut work_dir = std::path::PathBuf::from(path.trim());
-                if !work_dir.is_absolute() {
+                if work_dir.is_relative() {
                     work_dir = state.work_dir.join(work_dir);
-                    if let Ok(path) = work_dir.canonicalize() {
-                        work_dir = path;
-                    } else {
-                        sender
-                            .send(Message::text(format!(
-                                "Failed to resolve path: {}",
-                                work_dir.display()
-                            )))
-                            .await
-                            .ok();
-                        continue;
-                    }
                 }
-                let message = if state.work_dir.exists() {
-                    state.work_dir = work_dir;
-                    "".to_string()
+                let message = if let Ok(path) = work_dir.normalize() {
+                    state.work_dir = path.into_path_buf();
+                    format!("▻ {}", state.work_dir.display())
                 } else {
-                    format!("Directory does not exist: {}", state.work_dir.display())
+                    format!("Failed to resolve path: {}", work_dir.display())
                 };
                 sender.send(Message::text(message)).await.ok();
                 continue;
