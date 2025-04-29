@@ -1,8 +1,9 @@
 use axum::{
-    Json,
+    Json, Router,
     extract::ws::{Message, WebSocket, WebSocketUpgrade},
     extract::{Path, State},
     response::Response,
+    routing::{any, get, post},
 };
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use normpath::PathExt;
@@ -13,6 +14,14 @@ use tracing::*;
 pub struct AppState {
     pub shell: crate::shell::Shell,
     pub work_dir: std::path::PathBuf,
+}
+
+pub fn create_router(state: AppState) -> Router {
+    Router::new()
+        .route("/shells", get(get_available))
+        .route("/socket/{shell}", any(connect_socket))
+        .route("/execute", post(execute_command))
+        .with_state(state)
 }
 
 pub async fn get_available() -> Json<Vec<String>> {

@@ -3,24 +3,6 @@
 version = 4
 
 [[package]]
-name = "WebTerminal"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "chardetng",
- "dotenvy",
- "encoding_rs",
- "futures-util",
- "normpath",
- "strip-ansi-escapes",
- "tokio",
- "tower-http",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "addr2line"
 version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1136,6 +1118,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9683f9a5a998d873c0d21fcbe3c083009670149a8fab228644b8bd36b2c48cb3"
 dependencies = [
  "wit-bindgen-rt",
+]
+
+[[package]]
+name = "web-terminal"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "chardetng",
+ "dotenvy",
+ "encoding_rs",
+ "futures-util",
+ "normpath",
+ "strip-ansi-escapes",
+ "tokio",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

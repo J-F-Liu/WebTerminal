@@ -1,8 +1,4 @@
 use anyhow::Context;
-use axum::{
-    Router,
-    routing::{any, get, post},
-};
 use std::env;
 use tower_http::services::ServeDir;
 use tracing::*;
@@ -42,11 +38,7 @@ async fn main() -> anyhow::Result<()> {
     };
 
     // build our application with some routes
-    let router = Router::new()
-        .route("/shells", get(get_available))
-        .route("/socket/{shell}", any(connect_socket))
-        .route("/execute", post(execute_command))
-        .with_state(state)
+    let router = create_router(state)
         .nest_service("/logs", ServeDir::new(logs_dir))
         .fallback_service(ServeDir::new("public").precompressed_br());
 
