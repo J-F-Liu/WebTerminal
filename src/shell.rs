@@ -2,6 +2,7 @@
 pub enum Shell {
     CMD,
     Bash,
+    Fish,
     SH,
     NU,
 }
@@ -11,6 +12,7 @@ impl Shell {
         match name {
             "cmd" => Shell::CMD,
             "bash" => Shell::Bash,
+            "fish" => Shell::Fish,
             "sh" => Shell::SH,
             "nu" => Shell::NU,
             _ => Shell::SH,
@@ -21,6 +23,7 @@ impl Shell {
         match self {
             Shell::CMD => "cmd",
             Shell::Bash => "bash",
+            Shell::Fish => "fish",
             Shell::SH => "sh",
             Shell::NU => "nu",
         }
